@@ -1,0 +1,170 @@
+%
+% This is the LaTeX template file for lecture notes for EE 382C/EE 361C.
+%
+% To familiarize yourself with this template, the body contains
+% some examples of its use.  Look them over.  Then you can
+% run LaTeX on this file.  After you have LaTeXed this file then
+% you can look over the result either by printing it out with
+% dvips or using xdvi.
+%
+% This template is based on the template for Prof. Sinclair's CS 270.
+
+\documentclass[twoside]{article}
+\usepackage{graphics}
+\setlength{\oddsidemargin}{0.25 in}
+\setlength{\evensidemargin}{-0.25 in}
+\setlength{\topmargin}{-0.6 in}
+\setlength{\textwidth}{6.5 in}
+\setlength{\textheight}{8.5 in}
+\setlength{\headsep}{0.75 in}
+\setlength{\parindent}{0 in}
+\setlength{\parskip}{0.1 in}
+
+%
+% The following commands set up the lecnum (lecture number)
+% counter and make various numbering schemes work relative
+% to the lecture number.
+%
+\newcounter{lecnum}
+\renewcommand{\thepage}{\thelecnum-\arabic{page}}
+\renewcommand{\thesection}{\thelecnum.\arabic{section}}
+\renewcommand{\theequation}{\thelecnum.\arabic{equation}}
+\renewcommand{\thefigure}{\thelecnum.\arabic{figure}}
+\renewcommand{\thetable}{\thelecnum.\arabic{table}}
+
+%
+% The following macro is used to generate the header.
+%
+\newcommand{\lecture}[4]{
+   \pagestyle{myheadings}
+   \thispagestyle{plain}
+   \newpage
+   \setcounter{lecnum}{#1}
+   \setcounter{page}{1}
+   \noindent
+   \begin{center}
+   \framebox{
+      \vbox{\vspace{2mm}
+    \hbox to 6.28in { {\bf EE 382C/361C: Multicore Computing
+                        \hfill Fall 2016} }
+       \vspace{4mm}
+       \hbox to 6.28in { {\Large \hfill Lecture #1: #2  \hfill} }
+       \vspace{2mm}
+       \hbox to 6.28in { {\it Lecturer: #3 \hfill Scribe: #4} }
+      \vspace{2mm}}
+   }
+   \end{center}
+   \markboth{Lecture #1: #2}{Lecture #1: #2}
+   %{\bf Disclaimer}: {\it These notes have not been subjected to the
+   %usual scrutiny reserved for formal publications.  They may be distributed
+   %outside this class only with the permission of the Instructor.}
+   \vspace*{4mm}
+}
+
+%
+% Convention for citations is authors' initials followed by the year.
+% For example, to cite a paper by Leighton and Maggs you would type
+% \cite{LM89}, and to cite a paper by Strassen you would type \cite{S69}.
+% (To avoid bibliography problems, for now we redefine the \cite command.)
+% Also commands that create a suitable format for the reference list.
+\renewcommand{\cite}[1]{[#1]}
+\def\beginrefs{\begin{list}%
+        {[\arabic{equation}]}{\usecounter{equation}
+         \setlength{\leftmargin}{2.0truecm}\setlength{\labelsep}{0.4truecm}%
+         \setlength{\labelwidth}{1.6truecm}}}
+\def\endrefs{\end{list}}
+\def\bibentry#1{\item[\hbox{[#1]}]}
+
+%Use this command for a figure; it puts a figure in wherever you want it.
+%usage: \fig{NUMBER}{SPACE-IN-INCHES}{CAPTION}
+\newcommand{\fig}[3]{
+			\vspace{#2}
+			\begin{center}
+			Figure \thelecnum.#1:~#3
+			\end{center}
+	}
+% Use these for theorems, lemmas, proofs, etc.
+\newtheorem{theorem}{Theorem}[lecnum]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{definition}[theorem]{Definition}
+\newenvironment{proof}{{\bf Proof:}}{\hfill\rule{2mm}{2mm}}
+
+% **** IF YOU WANT TO DEFINE ADDITIONAL MACROS FOR YOURSELF, PUT THEM HERE:
+
+\begin{document}
+%FILL IN THE RIGHT INFO.
+%\lecture{**LECTURE-NUMBER**}{**DATE**}{**LECTURER**}{**SCRIBE**}
+\lecture{4}{September 6}{Josep Torrellas}{Brad VanderWilp}
+%\footnotetext{These notes are partially based on those of Nigel Mansell.}
+
+% **** YOUR NOTES GO HERE:
+
+% Some general latex examples and examples making use of the
+% macros follow.  
+%**** IN GENERAL, BE BRIEF. LONG SCRIBE NOTES, NO MATTER HOW WELL WRITTEN,
+%**** ARE NEVER READ BY ANYBODY.
+\section{Introduction}
+As technology advances, we are able to build bigger and better computers. More, smaller transistors, larger cloud cores, and 3D stacked chips allow us more processing power is computers. The need to utilize this processing power has pushed research towards many-core computers. However, difficulties arise as power consumption increases and the rate of electrical improvements slows. Thus, research prioritizes energy efficiency, fast communication, and ease of programming as we explore the possibilities of parallelism.
+
+\section{Memory Fences}
+
+One way to improve synchronization is through the use of fences. "Fence" is a primitive used by both programmers and compilers to prevent the reordering of memory accesses. For example, in the sequence $write-x, fence, read-y$, the effects on the read on y cannot be observed by any other process until after the previous write has retired from the pipeline and the write buffer (WB) has been drained.
+
+The following illustrates the effectiveness of  fences. Consider the following code:
+
+Process1 $A0: x=1; fence; A1: t0=y$
+
+Process2 $B0: y=1; fence; A1: t1=x$
+
+Here, fences prevent the order of retirement from being $A1, B0, B1, A0$. This is a possibility because of the time memory can take to propagate. This shows fences ability to preserve Sequential Consistency (SC). 
+
+\subsection{Work-stealing Algorithm}
+
+The order between accesses enforced by fences can be used in work-stealing algorithm. Here, several worker processes are given a queue of tasks, which they execute from the tail-end. If a worker completes all of its tasks, it proceeds to steal a task from the head of a different worker's queue. To avoid interfering with each others' task lists, fences can be where workers and thieves perform their check whether the head of a queue is also the tail. A fence is placed between the thief's $get$ of the head and check of the tail, and fence is placed between the worker's $get$ of the tail and check of the head
+
+\subsection{Past implementations}
+
+A simple implementation for fences would be to stall all memory operations at a fence until other instructions have retired. This, however, leads to a lot of time wasted waiting. Another option would be to allow data to be loaded speculatively after a fence. If a read after a fence is observed through the cache of another process, the read is squashed. This implementation also prevents reads from retiring until after the WB is drained. Still, there is a need for yet cheaper fence implementations
+
+\subsection{WeeFence}
+
+WeeFence (WFence) is a proposed type of fence that is skipped and allows statements to execute even before the WB drains. This prevents write misses from piling up before a fence. The only stall that needs to occur is right before a read that would violate SC. This is detected by using a global pending set (PS) table. Before a fence is passed, statements are pushed onto the table. If an instruction occurs after a fence that would violate SC based on some statement in the table, a stall is issues.
+
+This method is successful partially because cycles that break SC are generally uncommon. Additionally, WFence is convenient because no compiler support is required. However, maintaining this global table is expensive. Without a global state to order the PS, deadlock could occur as processors stall for each others' fenced statements. But, if at least one processor stalls before the fence, the deadlock is broken
+
+\subsection{Asymmetric fences}
+
+The asymmetric implementation of WFences uses 1 conventional "strong" fence and N-1 "weak", WFence-type fences for a given conflict cycle of N processors. This eliminates the cost of maintaining a global table at the cost of keeping a slower, strong fence. This can be optimized by strategically placing strong fences at sections of code that occur less frequently, such as at initialization rather than in the loop that uses a variable. In the previously mentioned work-stealing algorithm, for example, the strong fence would be used in the thief code because it is the less common case.
+
+Overall, the use of WFences has been shown to be effective. Tests have revealed WFence to eliminate ninety percent of fence stall time and reduce overhead from forty percent to two percent when compared to normal fences.
+
+\section{Breaking Serialization}
+
+Another major objective for parallelization is to alleviate the bottleneck caused by multiple functions accessing the same variable. One common answer to this problem is to use Compare-and-Set (CAS) algorithms. These operate by obtaining the value, changing it, and then performing an atomic operation to set the value only if the variable has not been altered by a different process. However, this leads to processors wasting time, as only one sets the variable at a time.
+
+\subsection{CASPAR}
+
+A modern implementation attempts to eliminate the time that a process must wait to change and use a shared variable with CAS. First, load requests for the old variable value are queued. This allows only one CAS operation to be performed at a time for completely serial execution.
+
+The next step is an eager forwarding method. The cache containing the variable is forwarded between processes. This prevents stalling as execution occurs in parallel. The new value of the variable is later compared to the actual value.
+
+\section{Scalable Concurrent Priority Queues}
+
+One other goal for improving concurrency is improving implementations of priority queue. Some algorithms work best if certain parallel tasks are executed before others, necessitating an efficient priority queue. However, significant overhead can arise when many processes attempt to simultaneously access the highest priority item. One design involves relaxing the priority and giving different processes sub-queues. However, this potentially leaves the optimum of the sub-queue to be far from the global optimum.
+
+Instead, one implementation uses a mix of hardware and software to organize sub-queues. A hardware register tracks the head of all sub-queues, and all items are enqueued to the local sub-queue. Upon dequeueing an item, all subqueues are visited and sorted. Then, one of the items in the highest range is chosen. By not choosing the highest priority item every time, conflicts between processes are avoided. Such implementations have been found to produce 2-5x speedup.
+
+\section{Other Projects}
+
+Optimizing the usage of growing processor technology is a multidisciplinary task which include many other projects than the ones discussed here. For example, WiSync is a concept which includes antennae within microchips. This improves communication by create a wireless network within a wired network. QuickRec is a system of modifying the cache hierarchy to record the non-deterministic events that occur during execution of a program. This provides a useful debugging tool for parallel systems by using these logs to replicate an execution of a program. ScalCore is a design that generates multiple voltage domains for memory and logic to increase throughput. Since logical data can be transmitted with lower voltage, faster memory accesses can be sent simultaneously, improving speed and conserving energy. Finally, research in control theory has been working to improve controllers for power performance, temperature, and other parameters in such a way as to prevent inefficient competition. 
+
+
+\end{document}
+
+
+
+
+
